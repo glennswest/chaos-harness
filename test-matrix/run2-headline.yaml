@@ -1,0 +1,17 @@
+## Run 2 — HEADLINE NUMBER on 192+ core hardware.
+##
+## SNO topology, unconstrained workers (Go's default GOMAXPROCS = 192),
+## drift mode. This is the run whose victim p99 / p99.9 jitter and
+## peak total threads we will quote when explaining the failure mode
+## to product management and upstream maintainers.
+run_id: run2-headline
+duration: 600s
+mode: drift
+topology: sno
+worker_gomaxprocs: 0
+victim:
+  mode: hires_jitter
+  pinning_cpus: "0-3"          # housekeeping cores — even pinned, this should still degrade
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

@@ -1,0 +1,26 @@
+# Tuned-RT variant of the headline run.
+#
+# Same workload and topology as run2-headline (SNO, drift mode,
+# unconstrained-by-default GOMAXPROCS) but the launcher applies the
+# large-host-rt PerformanceProfile, pinning each spawned process to
+# its assigned cpuset, GOMAXPROCS, and (where applicable) RT priority.
+#
+# Pre-conditions:
+#   * Host booted into kernel-rt.
+#   * Kernel cmdline matches large-host-rt.yaml additionalKernelArgs.
+#   * irqbalance stopped.
+#
+# Edit examples/profiles/large-host-rt.yaml to match your host's
+# logical CPU count and victim core indices before running.
+run_id: run-tuned-rt
+duration: 600s
+mode: drift
+topology: sno
+worker_gomaxprocs: 0
+performance_profile: examples/profiles/large-host-rt.yaml
+tuning_backend: ""
+victim:
+  mode: hires_jitter
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

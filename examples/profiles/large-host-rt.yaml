@@ -1,0 +1,149 @@
+# Generic large-host RT PerformanceProfile.
+#
+# Identical layout to large-host.yaml but with the RT kernel enabled
+# and the kernel cmdline knobs that an RT host typically needs.
+#
+# Two-knob configuration per CPU vendor
+# -------------------------------------
+#
+# Most of the kernel cmdline is portable. The deep-idle / c-state
+# knob differs between vendors:
+#
+#   * Intel hosts:
+#       additionalKernelArgs:
+#         - "intel_idle.max_cstate=0"
+#         - "processor.max_cstate=1"
+#
+#   * AMD (and other non-Intel) hosts:
+#       additionalKernelArgs:
+#         - "processor.max_cstate=1"
+#
+# `intel_idle.max_cstate` is silently ignored on non-Intel hosts but
+# emits a kernel warning on some kernels — leave it out unless you
+# are on an Intel platform.
+#
+# Pre-conditions for preflight to pass:
+#   1. Booted into kernel-rt (uname -r contains "rt").
+#   2. Kernel cmdline contains isolcpus=managed_irq,8-287 (range must
+#      match `cpu.isolated` below).
+#   3. irqbalance stopped (systemctl stop irqbalance).
+#
+# Layout assumed by this template:
+#   reserved: 0-7
+#   isolated: 8-287          adjust to match logical CPU count
+#   victim:   last 4 cores of isolated, exclusive
+#
+# On chiplet CPUs (e.g. CCD-based parts), pick the victim's 4 cores
+# from a single chiplet so they share one last-level cache. If SMT
+# is enabled, include both SMT siblings of those cores in the victim
+# cpuset so a workload cannot land on the sibling thread and steal
+# L1/L2 or execution units (e.g. on a 160-core / 320-thread chiplet
+# CPU: `cpus: "156-159,316-319"`).
+
+apiVersion: performance.openshift.io/v2
+kind: PerformanceProfile
+metadata:
+  name: large-host-rt
+spec:
+  cpu:
+    reserved: "0-7"
+    isolated: "8-287"
+  realTimeKernel:
+    enabled: true
+  numa:
+    topologyPolicy: best-effort
+  globallyDisableIrqLoadBalancing: true
+  workloadHints:
+    realTime: true
+    perPodPowerManagement: false
+  additionalKernelArgs:
+    - "isolcpus=managed_irq,8-287"
+    - "nohz_full=8-287"
+    - "rcu_nocbs=8-287"
+    # Pick ONE of the following c-state knobs (see vendor note above):
+    - "processor.max_cstate=1"
+    # - "intel_idle.max_cstate=0"     # add this line on Intel hosts
+    - "idle=poll"
+    - "skew_tick=1"
+    - "nowatchdog"
+
+  defaultClass: burstable
+  componentMap:
+    # Mgmt / control-plane -> reserved (0-7).
+    etcd:                                        {class: reserved}
+    kube-apiserver:                              {class: reserved}
+    kube-controller-manager:                     {class: reserved}
+    kube-scheduler:                              {class: reserved}
+    openshift-apiserver:                         {class: reserved}
+    openshift-oauth-apiserver:                   {class: reserved}
+    openshift-controller-manager:                {class: reserved}
+    openshift-route-controller-manager:          {class: reserved}
+    cluster-policy-controller:                   {class: reserved}
+    cluster-version-operator:                    {class: reserved}
+    cluster-network-operator:                    {class: reserved}
+    cluster-monitoring-operator:                 {class: reserved}
+    cluster-node-tuning-operator:                {class: reserved}
+    machine-config-operator:                     {class: reserved}
+    machine-config-daemon:                       {class: reserved}
+    kubelet:                                     {class: reserved}
+    coredns:                                     {class: reserved}
+    dns-node-resolver:                           {class: reserved}
+    multus:                                      {class: reserved}
+    network-metrics-daemon:                      {class: reserved}
+
+    # Network data plane -> isolated-shared.
+    ovnkube-control-plane:                       {class: isolated-shared}
+    ovnkube-controller:                          {class: isolated-shared}
+    ovnkube-node:                                {class: isolated-shared}
+    router-default:                              {class: isolated-shared}
+
+    # Observability -> burstable.
+    prometheus-k8s:                              {class: burstable}
+    prometheus-operator:                         {class: burstable}
+    prometheus-user-workload:                    {class: burstable}
+    thanos-querier:                              {class: burstable}
+    alertmanager:                                {class: burstable}
+    kube-state-metrics:                          {class: burstable}
+    openshift-state-metrics:                     {class: burstable}
+    node-exporter:                               {class: burstable}
+    telemeter-client:                            {class: burstable}
+    vector:                                      {class: burstable}
+
+    # Operators -> best-effort.
+    cluster-authentication-operator:             {class: best-effort}
+    cluster-csi-snapshot-controller-operator:    {class: best-effort}
+    cluster-dns-operator:                        {class: best-effort}
+    cluster-image-registry-operator:             {class: best-effort}
+    cluster-ingress-operator:                    {class: best-effort}
+    cluster-samples-operator:                    {class: best-effort}
+    cluster-storage-operator:                    {class: best-effort}
+    console-operator:                            {class: best-effort}
+    etcd-operator:                               {class: best-effort}
+    kube-apiserver-operator:                     {class: best-effort}
+    kube-controller-manager-operator:            {class: best-effort}
+    kube-scheduler-operator:                     {class: best-effort}
+    machine-api-operator:                        {class: best-effort}
+    machine-approver:                            {class: best-effort}
+    olm-operator:                                {class: best-effort}
+    catalog-operator:                            {class: best-effort}
+    package-server-manager:                      {class: best-effort}
+    openshift-apiserver-operator:                {class: best-effort}
+    openshift-config-operator:                   {class: best-effort}
+    service-ca-operator:                         {class: best-effort}
+    image-registry:                              {class: best-effort}
+    console:                                     {class: best-effort}
+    oauth-proxy:                                 {class: best-effort}
+    csi-snapshot-controller:                     {class: best-effort}
+    csi-driver-node:                             {class: best-effort}
+    user-workload-operator:                      {class: best-effort}
+    node-tuning-daemon:                          {class: best-effort}
+    kubelet-cadvisor:                            {class: best-effort}
+
+    # Synthetic chaos-harness components.
+    chaos-victim:
+      class: isolated-exclusive
+      cpus: "284-287"        # adjust; see chiplet/SMT note in header
+      rtPriority: 50
+      notes: "the spike must not reach these CPUs; SCHED_FIFO 50 because RT kernel is enabled"
+    chaos-observer:
+      class: reserved

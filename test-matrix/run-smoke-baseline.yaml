@@ -1,0 +1,14 @@
+# Smoke baseline — no tuning, 60s, worker topology. Comparison point for
+# run-smoke-tuned. Victim runs unconstrained; expect jitter to spike when
+# the chaos workers max out the box.
+run_id: run-smoke-baseline
+duration: 60s
+mode: drift
+topology: worker
+worker_gomaxprocs: 0
+victim:
+  mode: hires_jitter
+  pinning_cpus: ""
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

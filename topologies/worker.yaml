@@ -1,0 +1,136 @@
+## Multinode worker node topology.
+##
+## Models a worker host in a multinode OpenShift cluster. Cluster
+## operators run on masters via leader election, so the worker
+## topology is dominated by node agents, network/observability
+## daemonsets, and a representative slice of user/operator workloads.
+##
+## The user_workload component is a tunable abstraction: in real
+## clusters this is whatever the customer is running. The default
+## sketches a moderately-loaded worker — adjust by changing replicas.
+host_type: worker
+description: "OpenShift worker node (multinode)"
+
+components:
+  # ---------------- Node-level platform agents ----------------
+  - name: kubelet
+    role: node-agent
+    description: "Node agent — main control loop, container manager"
+    processes:
+      - profile: control-plane
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 4
+
+  - name: machine-config-daemon
+    role: node-agent
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+
+  - name: node-tuning-daemon
+    role: node-agent
+    description: "Tuned daemon (Go wrapper around tuned-adm)"
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+
+  # ---------------- Networking ----------------
+  - name: ovnkube-node
+    role: network
+    description: "OVN-Kubernetes node-side controller"
+    processes:
+      - profile: networking
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 4
+
+  - name: multus
+    role: network
+    processes:
+      - profile: networking
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 2
+
+  - name: network-metrics-daemon
+    role: network
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+
+  # ---------------- Storage ----------------
+  - name: csi-snapshot-controller
+    role: storage
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+
+  - name: csi-driver-node
+    role: storage
+    description: "Generic CSI node driver (one per active provisioner)"
+    processes:
+      - profile: operator-generic
+        replicas: 2  # e.g. local + cloud provisioner
+        gomaxprocs: 0
+
+  # ---------------- Monitoring agents ----------------
+  - name: node-exporter
+    role: monitoring
+    processes:
+      - profile: monitoring
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 2
+
+  - name: kubelet-cadvisor
+    role: monitoring
+    description: "cadvisor exposed by kubelet (already counted under kubelet but separate metric exporter is common)"
+    processes:
+      - profile: monitoring
+        replicas: 1
+        gomaxprocs: 0
+
+  # ---------------- Logging ----------------
+  - name: vector
+    role: logging
+    description: "Log forwarder daemonset (high alloc churn)"
+    processes:
+      - profile: logging
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 4
+
+  # ---------------- DNS ----------------
+  - name: dns-node-resolver
+    role: dns
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+
+  # ---------------- User workload simulation ----------------
+  # Generic operator-flavored workloads — replicas knob for fleet
+  # quantity. Default 8 ≈ small platform plus a couple of customer
+  # operators.
+  - name: user-workload-operator
+    role: workload
+    description: "Stand-in for customer/platform operators that ship as a Go pod"
+    processes:
+      - profile: operator-generic
+        replicas: 8
+        gomaxprocs: 0
+
+  # User application replicas — 4 distinct apps × 2 replicas, all
+  # running as Go services. Adjust to match your target population.
+  - name: user-app
+    role: workload
+    description: "Stand-in for Go-based application workloads on this node"
+    processes:
+      - profile: control-plane
+        replicas: 8
+        gomaxprocs: 0

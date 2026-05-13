@@ -1,0 +1,17 @@
+## Run 4 — Mitigation demonstration (drift).
+##
+## Same SNO topology and drift mode as run2, but with worker_gomaxprocs
+## = 4 applied to every worker. This shows how clamping GOMAXPROCS
+## cluster-wide reduces M creation and victim degradation. The
+## headline question is: how close does this get to baseline?
+run_id: run4-mitigation
+duration: 600s
+mode: drift
+topology: sno
+worker_gomaxprocs: 4           # ← the mitigation lever
+victim:
+  mode: hires_jitter
+  pinning_cpus: "0-3"
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

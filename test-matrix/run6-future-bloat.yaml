@@ -1,0 +1,19 @@
+## Run 6 — Future-bloat scenario (more processes, drift).
+##
+## What happens to the headline numbers when OCP grows another bunch
+## of operators? We model this by using the master topology and an
+## inline doubling of the user_workload count in the worker layer
+## via a custom topology file. For v1 we approximate by piling another
+## ~25 processes onto SNO via a custom topology — see
+## topologies/future-bloat.yaml when present, otherwise SNO.
+run_id: run6-future-bloat
+duration: 600s
+mode: drift
+topology: future-bloat        # falls back to sno if the custom file isn't present
+worker_gomaxprocs: 0
+victim:
+  mode: hires_jitter
+  pinning_cpus: "0-3"
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

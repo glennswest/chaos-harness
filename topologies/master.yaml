@@ -1,0 +1,242 @@
+## Multinode master node topology.
+##
+## Models a single master in a 3-master OpenShift cluster: one local
+## etcd member, one local copy of each apiserver/controller-manager/
+## scheduler, and the cluster operators (which run with leader
+## election but a non-leader replica is still a Go process consuming
+## resources).
+##
+## Worker-side components (kubelet, OVN-K node, observability agents)
+## are NOT in this topology — they belong in worker.yaml. Real masters
+## also run kubelet, but the dominant load is the control plane.
+host_type: master
+description: "OpenShift master node (multinode, 1 of 3 control-plane hosts)"
+
+components:
+  - name: etcd
+    role: control-plane-data
+    processes:
+      - profile: etcd-like
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 8
+
+  - name: kube-apiserver
+    role: control-plane
+    processes:
+      - profile: control-plane
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 8
+
+  - name: kube-controller-manager
+    role: control-plane
+    processes:
+      - profile: control-plane
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 4
+
+  - name: kube-scheduler
+    role: control-plane
+    processes:
+      - profile: control-plane
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 4
+
+  - name: openshift-apiserver
+    role: control-plane
+    processes:
+      - profile: control-plane
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 4
+
+  - name: openshift-oauth-apiserver
+    role: control-plane
+    processes:
+      - profile: control-plane
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 2
+
+  - name: openshift-controller-manager
+    role: control-plane
+    processes:
+      - profile: control-plane
+        replicas: 1
+        gomaxprocs: 0
+
+  - name: cluster-policy-controller
+    role: control-plane
+    processes:
+      - profile: control-plane
+        replicas: 1
+        gomaxprocs: 0
+
+  - name: openshift-route-controller-manager
+    role: control-plane
+    processes:
+      - profile: control-plane
+        replicas: 1
+        gomaxprocs: 0
+
+  # Cluster operators — leader election means one of three masters is
+  # active per operator, but all three host a replica. We model a
+  # single host so each operator appears once.
+  - name: cluster-version-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: cluster-network-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: cluster-storage-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: cluster-image-registry-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: cluster-monitoring-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: cluster-authentication-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: cluster-ingress-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: cluster-dns-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: machine-api-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: machine-config-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: kube-apiserver-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: kube-controller-manager-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: kube-scheduler-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: etcd-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: openshift-apiserver-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: openshift-config-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: olm-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+  - name: catalog-operator
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+
+  # OVN-K cluster manager + nbdb/sbdb run on masters.
+  - name: ovnkube-control-plane
+    role: network
+    processes:
+      - profile: networking
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 4
+
+  # Masters also run the node-side agents (kubelet, OVN-K node, etc.)
+  # because in real OCP every master IS a node.
+  - name: kubelet
+    role: node-agent
+    processes:
+      - profile: control-plane
+        replicas: 1
+        gomaxprocs: 0
+        ideal_threads: 4
+
+  - name: ovnkube-node
+    role: network
+    processes:
+      - profile: networking
+        replicas: 1
+        gomaxprocs: 0
+
+  - name: multus
+    role: network
+    processes:
+      - profile: networking
+        replicas: 1
+        gomaxprocs: 0
+
+  - name: machine-config-daemon
+    role: node-agent
+    processes:
+      - profile: operator-generic
+        replicas: 1
+        gomaxprocs: 0
+
+  - name: node-exporter
+    role: monitoring
+    processes:
+      - profile: monitoring
+        replicas: 1
+        gomaxprocs: 0

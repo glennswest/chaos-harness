@@ -1,0 +1,95 @@
+## Future-bloat topology — SNO + a second wave of operators.
+##
+## Models a hypothetical OCP growth scenario in which another ~25
+## platform/customer operators are added to a single node. Numbers are
+## intentionally pessimistic — adjust as the OCP component list
+## evolves.
+host_type: sno-future-bloat
+description: "SNO with an additional batch of operators simulating future component growth"
+
+components:
+  # Same core control plane as sno.yaml.
+  - name: etcd
+    processes: [{profile: etcd-like, replicas: 1, gomaxprocs: 0, ideal_threads: 8}]
+  - name: kube-apiserver
+    processes: [{profile: control-plane, replicas: 1, gomaxprocs: 0, ideal_threads: 8}]
+  - name: kube-controller-manager
+    processes: [{profile: control-plane, replicas: 1, gomaxprocs: 0}]
+  - name: kube-scheduler
+    processes: [{profile: control-plane, replicas: 1, gomaxprocs: 0}]
+  - name: openshift-apiserver
+    processes: [{profile: control-plane, replicas: 1, gomaxprocs: 0}]
+  - name: openshift-oauth-apiserver
+    processes: [{profile: control-plane, replicas: 1, gomaxprocs: 0}]
+  - name: openshift-controller-manager
+    processes: [{profile: control-plane, replicas: 1, gomaxprocs: 0}]
+  - name: cluster-policy-controller
+    processes: [{profile: control-plane, replicas: 1, gomaxprocs: 0}]
+
+  # Existing operator block (compressed — see sno.yaml for the
+  # rationale).
+  - name: cluster-version-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: cluster-network-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: cluster-storage-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: cluster-image-registry-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: cluster-monitoring-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: cluster-authentication-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: cluster-ingress-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: cluster-dns-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: machine-api-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: machine-config-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: kube-apiserver-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: kube-controller-manager-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: kube-scheduler-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: etcd-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: olm-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+  - name: catalog-operator
+    processes: [{profile: operator-generic, replicas: 1, gomaxprocs: 0}]
+
+  # Networking + monitoring + logging — same as SNO baseline.
+  - name: ovnkube-node
+    processes: [{profile: networking, replicas: 1, gomaxprocs: 0}]
+  - name: ovnkube-controller
+    processes: [{profile: networking, replicas: 1, gomaxprocs: 0}]
+  - name: multus
+    processes: [{profile: networking, replicas: 1, gomaxprocs: 0}]
+  - name: prometheus-k8s
+    processes: [{profile: monitoring, replicas: 1, gomaxprocs: 0}]
+  - name: alertmanager
+    processes: [{profile: monitoring, replicas: 1, gomaxprocs: 0}]
+  - name: thanos-querier
+    processes: [{profile: monitoring, replicas: 1, gomaxprocs: 0}]
+  - name: kube-state-metrics
+    processes: [{profile: monitoring, replicas: 1, gomaxprocs: 0}]
+  - name: node-exporter
+    processes: [{profile: monitoring, replicas: 1, gomaxprocs: 0}]
+  - name: vector
+    processes: [{profile: logging, replicas: 1, gomaxprocs: 0}]
+  - name: kubelet
+    processes: [{profile: control-plane, replicas: 1, gomaxprocs: 0}]
+
+  # ---- Future-bloat additions: 25 extra operator-class processes. ----
+  # Names are illustrative — substitute with real future-OCP component
+  # names when the catalog firms up.
+  - name: future-operators
+    description: "25 illustrative future operators / controllers"
+    role: operator
+    processes:
+      - profile: operator-generic
+        replicas: 25
+        gomaxprocs: 0

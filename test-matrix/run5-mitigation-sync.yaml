@@ -1,0 +1,18 @@
+## Run 5 — Mitigation under sync-aligned reconcile.
+##
+## The mitigation (GOMAXPROCS=4) under the worst-case alignment from
+## run 3. If the mitigation holds up here, it holds up everywhere.
+run_id: run5-mitigation-sync
+duration: 600s
+mode: sync
+topology: sno
+worker_gomaxprocs: 4
+sync_trigger:
+  initial_offset: 30s
+  period: 15s
+victim:
+  mode: hires_jitter
+  pinning_cpus: "0-3"
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

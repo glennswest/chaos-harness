@@ -1,0 +1,51 @@
+# Smoke profile for a 16-vCPU test box.
+#
+# Layout:
+#   reserved: "0-3"  — chaos-launcher, chaos-observer, mgmt components
+#   isolated: "4-15" (12 CPUs, of which:)
+#     workload: "4-11" — chaos-workers carved into per-component slices
+#     victim:   "12-15" — chaos-victim exclusive
+#
+# The disjoint invariant: every worker is confined to a slice of 4-11,
+# the victim is alone on 12-15 — the spike physically cannot reach the
+# victim's CPUs.
+#
+# Hugepages, RT kernel, and high-power-consumption are NOT required
+# (a stock untuned host is enough). Preflight passes cleanly.
+
+apiVersion: performance.openshift.io/v2
+kind: PerformanceProfile
+metadata:
+  name: smoke-16cpu
+spec:
+  cpu:
+    reserved: "0-3"
+    isolated: "4-15"
+  defaultClass: burstable
+  componentMap:
+    # Mgmt → reserved.
+    kubelet:                 {class: reserved}
+    multus:                  {class: reserved}
+    machine-config-daemon:   {class: reserved}
+    coredns:                 {class: reserved}
+    dns-node-resolver:       {class: reserved}
+    network-metrics-daemon:  {class: reserved}
+
+    # Data plane → isolated-shared (carved out of workload pool 4-11).
+    ovnkube-controller:      {class: isolated-shared}
+    ovnkube-node:            {class: isolated-shared}
+
+    # Observability → burstable.
+    prometheus-k8s:          {class: burstable}
+    node-exporter:           {class: burstable}
+    vector:                  {class: burstable}
+    csi-driver-node:         {class: burstable}
+    user-app:                {class: burstable}
+    user-workload-operator:  {class: burstable}
+
+    # Synthetic chaos-harness components.
+    chaos-victim:
+      class: isolated-exclusive
+      cpus: "12-15"
+    chaos-observer:
+      class: reserved

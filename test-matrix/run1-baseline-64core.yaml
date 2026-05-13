@@ -1,0 +1,17 @@
+## Run 1 — Baseline node chaos on a 64–128 core box.
+##
+## SNO topology (full OCP component list), unconstrained workers (Go's
+## default GOMAXPROCS = NumCPU). Drift mode — each component reconciles
+## on its own clock with a random initial offset. This is the "what
+## does an idle SNO node do to itself when nothing is misbehaving" run.
+run_id: run1-baseline-64core
+duration: 600s
+mode: drift
+topology: sno
+worker_gomaxprocs: 0          # 0 = honor topology values (which are 0 = Go default)
+victim:
+  mode: hires_jitter
+  pinning_cpus: ""            # unconstrained — see what the kernel can do
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

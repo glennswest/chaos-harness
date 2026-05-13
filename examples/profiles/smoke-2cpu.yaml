@@ -1,0 +1,36 @@
+# Smoke profile for a 2-vCPU dev box.
+#
+# Purpose: validate the tuning code path end-to-end (parser → planner →
+# systemd-run scope → /proc/<pid>/status verify) on a host that does NOT
+# have hugepages, RT kernel, or isolcpus configured. None of those are
+# required by this profile, so preflight passes on a stock untuned host.
+#
+# Layout:
+#   reserved: "0"   — chaos-launcher, chaos-observer, all workers
+#   isolated: "1"   — chaos-victim only (exclusive)
+#
+# Disjoint invariant is preserved despite the tiny scale: all workers
+# share cpu 0, victim alone on cpu 1, the spike (such as it can be on
+# 2 cores) cannot reach cpu 1.
+#
+# This is a code-path test, NOT a headline-numbers test. For the latter
+# you need a 32+ core box and the sno-telco profile.
+
+apiVersion: performance.openshift.io/v2
+kind: PerformanceProfile
+metadata:
+  name: smoke-2cpu
+spec:
+  cpu:
+    reserved: "0"
+    isolated: "1"
+  # No hugepages, no RT kernel, no power-consumption hints — all of
+  # those would force preflight checks that an untuned host would fail.
+  defaultClass: reserved   # anything not in componentMap ends up on cpu 0
+  componentMap:
+    chaos-victim:
+      class: isolated-exclusive
+      cpus: "1"
+      # No rtPriority — needs RT kernel.
+    chaos-observer:
+      class: reserved

@@ -1,0 +1,39 @@
+# Build artifacts
+bin/
+bin-linux/
+dist/
+*.exe
+*.test
+*.out
+
+# Run output
+results/
+*.hdr
+*.jsonl
+*.csv
+
+# Secrets and environment
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs and temp
+*.log
+tmp/
+temp/
+
+# Go
+vendor/

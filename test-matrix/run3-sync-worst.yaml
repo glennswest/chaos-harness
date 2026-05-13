@@ -1,0 +1,20 @@
+## Run 3 — Worst-case alignment.
+##
+## SNO + unconstrained, but in SYNC mode: the launcher broadcasts a
+## RECONCILE every sync_trigger.period to all workers simultaneously.
+## This produces phase-locked reconcile bursts at 100% of workers — the
+## absolute worst case the failure mode can produce.
+run_id: run3-sync-worst
+duration: 600s
+mode: sync
+topology: sno
+worker_gomaxprocs: 0
+sync_trigger:
+  initial_offset: 30s          # let workers spin up first
+  period: 15s                  # cadence of forced alignment
+victim:
+  mode: hires_jitter
+  pinning_cpus: "0-3"
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

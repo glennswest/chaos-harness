@@ -1,0 +1,20 @@
+## Run 7 — Go 1.25 binary, no cgroup.
+##
+## Go 1.25 changed default GOMAXPROCS behaviour to respect cgroup quota.
+## This run uses the Go-1.25-built worker binary (chaos-worker-go125)
+## but launches without cgroup constraints — the Makefile's matrix
+## target swaps the binary based on this flag.
+##
+## Expected result: identical to run 2 (Go 1.25 alone is insufficient
+## without a cgroup quota; the harness exists in part to prove this).
+run_id: run7-go125-no-cgroup
+duration: 600s
+mode: drift
+topology: sno
+worker_gomaxprocs: 0
+victim:
+  mode: hires_jitter
+  pinning_cpus: "0-3"
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

@@ -1,0 +1,15 @@
+# Smoke tuned — same workload as run-smoke-baseline but with the
+# 16-CPU PerformanceProfile applied. Compare victim p99 vs baseline.
+# If tuning works, victim p99 should be substantially lower.
+run_id: run-smoke-tuned
+duration: 60s
+mode: drift
+topology: worker
+worker_gomaxprocs: 0
+performance_profile: examples/profiles/smoke-16cpu.yaml
+tuning_backend: ""
+victim:
+  mode: hires_jitter
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

@@ -1,0 +1,31 @@
+## Run 8 — TUNED HEADLINE.
+##
+## Same SNO topology and unconstrained-by-default GOMAXPROCS as run 2,
+## but with an OpenShift PerformanceProfile (sno-telco) applied. The
+## launcher loads the profile, runs preflight, builds a per-process
+## CPU plan, and wraps every spawned process in a systemd-run scope
+## (or cgroup-v2 / taskset fallback) so its cpuset, GOMAXPROCS, and
+## RT priority match the plan.
+##
+## Expectation:
+##   - chaos-victim is alone on cores 188-191 (exclusive).
+##   - No worker has access to those cores.
+##   - victim p99 / p99.9 jitter is bounded by the wakeup overhead of
+##     a quiet 4-CPU island, not by the spike across the rest of the box.
+##
+## This is the run that proves the spike does NOT reach the victim
+## when the harness is constrained the way OpenShift constrains a
+## tuned telco node.
+run_id: run8-tuned
+duration: 600s
+mode: drift
+topology: sno
+worker_gomaxprocs: 0
+performance_profile: examples/profiles/sno-telco.yaml
+tuning_backend: ""           # auto-select (systemd-run preferred)
+victim:
+  mode: hires_jitter
+  pinning_cpus: ""           # planner overrides this anyway; left empty for clarity
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

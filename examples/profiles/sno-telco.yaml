@@ -1,0 +1,138 @@
+# SNO telco profile — RT kernel, 1G hugepages, IRQs banned from isolated.
+#
+# Target shape: ~192 logical CPUs running Single Node OpenShift.
+# Reserved 0-3 for OS / management pods; isolated 4-191 for the
+# workload pool + victim carve. Adjust the ranges to match your host.
+#
+# This is the "make the spike not reach the victim" profile — the
+# headline-mitigation run-config (run8) loads this and gets:
+#   - Every chaos-worker pinned to a slice of the isolated pool with
+#     GOMAXPROCS forced to cpuset width (the cpuset-awareness fix).
+#   - chaos-victim alone on cores 188-191, exclusive cpuset, RT priority 50.
+#   - chaos-launcher / chaos-observer on the reserved 0-3 island.
+#
+# After applying: jitter spike is bounded by what fits inside the worker
+# slices. The victim never shares CPUs with any worker, so even a
+# coordinated GC-stop-the-world across all 30 workers cannot reach it.
+#
+# The `intel_idle.max_cstate=0` cmdline arg below is Intel-specific.
+# On non-Intel hosts, drop that line and rely on `processor.max_cstate=1`
+# alone. See examples/profiles/large-host-rt.yaml for the longer
+# explanation of the vendor knob.
+
+apiVersion: performance.openshift.io/v2
+kind: PerformanceProfile
+metadata:
+  name: sno-telco
+  labels:
+    role: telco
+    rt: "true"
+spec:
+  cpu:
+    reserved: "0-3"
+    isolated: "4-191"
+  hugepages:
+    defaultHugepagesSize: "1G"
+    pages:
+      - size: "1G"
+        count: 16
+  realTimeKernel:
+    enabled: true
+  numa:
+    topologyPolicy: single-numa-node
+  globallyDisableIrqLoadBalancing: true
+  workloadHints:
+    highPowerConsumption: true
+    realTime: true
+    perPodPowerManagement: false
+  net:
+    userLevelNetworking: true
+  additionalKernelArgs:
+    - "intel_idle.max_cstate=0"
+    - "processor.max_cstate=1"
+    - "idle=poll"
+
+  # ---------- chaos-harness extension ----------
+  defaultClass: burstable
+
+  # Component names below match topology/sno.yaml exactly. The harness
+  # cross-checks these at plan time and fails fast on typos.
+  componentMap:
+    # Management/control-plane pods → reserved (0-3).
+    etcd:                     {class: reserved, notes: "fsync-heavy; co-locate with apiserver"}
+    kube-apiserver:           {class: reserved}
+    kube-controller-manager:  {class: reserved}
+    kube-scheduler:           {class: reserved}
+    openshift-apiserver:      {class: reserved}
+    openshift-oauth-apiserver: {class: reserved}
+    openshift-controller-manager: {class: reserved}
+    openshift-route-controller-manager: {class: reserved}
+    cluster-policy-controller: {class: reserved}
+    cluster-version-operator: {class: reserved}
+    cluster-network-operator: {class: reserved}
+    cluster-monitoring-operator: {class: reserved}
+    cluster-node-tuning-operator: {class: reserved}
+    machine-config-operator:  {class: reserved}
+    machine-config-daemon:    {class: reserved}
+    kubelet:                  {class: reserved}
+    coredns:                  {class: reserved}
+    dns-node-resolver:        {class: reserved}
+    multus:                   {class: reserved}
+    network-metrics-daemon:   {class: reserved}
+
+    # Network data plane → isolated-shared (carved out of workload pool).
+    ovnkube-control-plane:    {class: isolated-shared}
+    ovnkube-controller:       {class: isolated-shared}
+    ovnkube-node:             {class: isolated-shared}
+    router-default:           {class: isolated-shared}
+
+    # Observability → burstable (workload pool, no exclusivity).
+    prometheus-k8s:           {class: burstable}
+    prometheus-operator:      {class: burstable}
+    prometheus-user-workload: {class: burstable}
+    thanos-querier:           {class: burstable}
+    alertmanager:             {class: burstable}
+    kube-state-metrics:       {class: burstable}
+    openshift-state-metrics:  {class: burstable}
+    node-exporter:            {class: burstable}
+    telemeter-client:         {class: burstable}
+    vector:                   {class: burstable}
+
+    # Generic operators → best-effort (full workload pool, no pinning).
+    cluster-authentication-operator:    {class: best-effort}
+    cluster-csi-snapshot-controller-operator: {class: best-effort}
+    cluster-dns-operator:               {class: best-effort}
+    cluster-image-registry-operator:    {class: best-effort}
+    cluster-ingress-operator:           {class: best-effort}
+    cluster-samples-operator:           {class: best-effort}
+    cluster-storage-operator:           {class: best-effort}
+    console-operator:                   {class: best-effort}
+    etcd-operator:                      {class: best-effort}
+    kube-apiserver-operator:            {class: best-effort}
+    kube-controller-manager-operator:   {class: best-effort}
+    kube-scheduler-operator:            {class: best-effort}
+    machine-api-operator:               {class: best-effort}
+    machine-approver:                   {class: best-effort}
+    olm-operator:                       {class: best-effort}
+    catalog-operator:                   {class: best-effort}
+    package-server-manager:             {class: best-effort}
+    openshift-apiserver-operator:       {class: best-effort}
+    openshift-config-operator:          {class: best-effort}
+    service-ca-operator:                {class: best-effort}
+    image-registry:                     {class: best-effort}
+    console:                            {class: best-effort}
+    oauth-proxy:                        {class: best-effort}
+    csi-snapshot-controller:            {class: best-effort}
+    csi-driver-node:                    {class: best-effort}
+    user-workload-operator:             {class: best-effort}
+    node-tuning-daemon:                 {class: best-effort}
+    kubelet-cadvisor:                   {class: best-effort}
+
+    # Synthetic chaos-harness components.
+    chaos-victim:
+      class: isolated-exclusive
+      cpus: "188-191"        # last 4 isolated CPUs; disjoint from every worker
+      rtPriority: 50          # SCHED_FIFO; requires realTimeKernel.enabled
+      notes: "the spike must not reach these CPUs"
+    chaos-observer:
+      class: reserved

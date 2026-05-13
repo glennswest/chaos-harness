@@ -1,0 +1,29 @@
+## Run 9 — TUNED + SYNC mode.
+##
+## Identical to run 8 but with sync-mode reconcile alignment forced
+## every 15 seconds. Without tuning, sync mode amplifies tail jitter
+## by ~64% (run 3 vs run 2). With the PerformanceProfile applied,
+## the victim's exclusive 188-191 cpuset means even worst-case
+## coordinated GC stop-the-world across all 30 workers cannot reach
+## those cores.
+##
+## This run answers: "does CPU isolation hold under sync-driven worst
+## case?" If yes, the mitigation is robust. If victim p99 still spikes
+## under sync, the spike is reaching the victim through some other
+## channel (memory bus, last-level cache, IRQs, NUMA traffic) and we
+## need to revisit the profile.
+run_id: run9-tuned-sync
+duration: 600s
+mode: sync
+topology: sno
+worker_gomaxprocs: 0
+performance_profile: examples/profiles/sno-telco.yaml
+tuning_backend: ""
+sync_trigger:
+  initial_offset: 30s
+  period: 15s
+victim:
+  mode: hires_jitter
+observer:
+  sample_interval: 1s
+  worker_pid_filter: chaos-worker

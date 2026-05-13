@@ -1,0 +1,112 @@
+# Generic large-host PerformanceProfile (non-RT, no hugepages).
+#
+# Intended as a starting template for a host with many logical CPUs
+# (e.g. 96, 128, 160, 192, 288). Adjust `reserved` and `isolated` to
+# match your hardware, then point a run-config at this file via
+# `performance_profile:`.
+#
+# Layout assumed by this template:
+#   reserved: 0-7         OS / observer / management
+#   isolated: 8-N         workload pool (chaos-workers + victim carve)
+#   victim:   last 4 CPUs of `isolated`, exclusive
+#
+# Two knobs you commonly resize:
+#   * `cpu.reserved` / `cpu.isolated` — must reflect actual core count.
+#   * `chaos-victim.cpus` — pick 4 CPUs on the highest core indices so
+#     they land on the most isolated NUMA / cache domain on your host
+#     (top of the last socket on a 2-socket box, top of the last CCD
+#     on a chiplet CPU).
+#
+# This template deliberately omits realTimeKernel, hugepages,
+# globallyDisableIrqLoadBalancing, and CPU-frequency hints — see
+# large-host-rt.yaml for the RT variant.
+
+apiVersion: performance.openshift.io/v2
+kind: PerformanceProfile
+metadata:
+  name: large-host
+spec:
+  cpu:
+    reserved: "0-7"
+    isolated: "8-287"
+  numa:
+    topologyPolicy: best-effort
+  defaultClass: burstable
+  componentMap:
+    # Mgmt / control-plane components -> reserved (0-7).
+    etcd:                                   {class: reserved}
+    kube-apiserver:                         {class: reserved}
+    kube-controller-manager:                {class: reserved}
+    kube-scheduler:                         {class: reserved}
+    openshift-apiserver:                    {class: reserved}
+    openshift-oauth-apiserver:              {class: reserved}
+    openshift-controller-manager:           {class: reserved}
+    openshift-route-controller-manager:     {class: reserved}
+    cluster-policy-controller:              {class: reserved}
+    cluster-version-operator:               {class: reserved}
+    cluster-network-operator:               {class: reserved}
+    cluster-monitoring-operator:            {class: reserved}
+    cluster-node-tuning-operator:           {class: reserved}
+    machine-config-operator:                {class: reserved}
+    machine-config-daemon:                  {class: reserved}
+    kubelet:                                {class: reserved}
+    coredns:                                {class: reserved}
+    dns-node-resolver:                      {class: reserved}
+    multus:                                 {class: reserved}
+    network-metrics-daemon:                 {class: reserved}
+
+    # Network data plane -> isolated-shared (carved from workload pool).
+    ovnkube-control-plane:                  {class: isolated-shared}
+    ovnkube-controller:                     {class: isolated-shared}
+    ovnkube-node:                           {class: isolated-shared}
+    router-default:                         {class: isolated-shared}
+
+    # Observability -> burstable.
+    prometheus-k8s:                         {class: burstable}
+    prometheus-operator:                    {class: burstable}
+    prometheus-user-workload:               {class: burstable}
+    thanos-querier:                         {class: burstable}
+    alertmanager:                           {class: burstable}
+    kube-state-metrics:                     {class: burstable}
+    openshift-state-metrics:                {class: burstable}
+    node-exporter:                          {class: burstable}
+    telemeter-client:                       {class: burstable}
+    vector:                                 {class: burstable}
+
+    # Operators -> best-effort.
+    cluster-authentication-operator:        {class: best-effort}
+    cluster-csi-snapshot-controller-operator: {class: best-effort}
+    cluster-dns-operator:                   {class: best-effort}
+    cluster-image-registry-operator:        {class: best-effort}
+    cluster-ingress-operator:               {class: best-effort}
+    cluster-samples-operator:               {class: best-effort}
+    cluster-storage-operator:               {class: best-effort}
+    console-operator:                       {class: best-effort}
+    etcd-operator:                          {class: best-effort}
+    kube-apiserver-operator:                {class: best-effort}
+    kube-controller-manager-operator:       {class: best-effort}
+    kube-scheduler-operator:                {class: best-effort}
+    machine-api-operator:                   {class: best-effort}
+    machine-approver:                       {class: best-effort}
+    olm-operator:                           {class: best-effort}
+    catalog-operator:                       {class: best-effort}
+    package-server-manager:                 {class: best-effort}
+    openshift-apiserver-operator:           {class: best-effort}
+    openshift-config-operator:              {class: best-effort}
+    service-ca-operator:                    {class: best-effort}
+    image-registry:                         {class: best-effort}
+    console:                                {class: best-effort}
+    oauth-proxy:                            {class: best-effort}
+    csi-snapshot-controller:                {class: best-effort}
+    csi-driver-node:                        {class: best-effort}
+    user-workload-operator:                 {class: best-effort}
+    node-tuning-daemon:                     {class: best-effort}
+    kubelet-cadvisor:                       {class: best-effort}
+
+    # Synthetic chaos-harness components.
+    chaos-victim:
+      class: isolated-exclusive
+      cpus: "284-287"        # adjust to top of your isolated range
+      notes: "the spike must not reach these CPUs"
+    chaos-observer:
+      class: reserved
